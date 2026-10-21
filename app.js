@@ -101,6 +101,18 @@
     if (piperAudio) { piperAudio.onended = null; piperAudio.onerror = null; piperAudio.pause(); piperAudio = null; }
     if (piperObjectUrl) { URL.revokeObjectURL(piperObjectUrl); piperObjectUrl = null; }
   }
+  function reportPiperDownload(progress, context) {
+    if (!progress || typeof progress !== 'object') return;
+    const loaded = Number(progress.loaded), total = Number(progress.total);
+    if (Number.isFinite(loaded) && Number.isFinite(total) && total > 0) {
+      const pct = Math.max(0, Math.min(100, Math.round(loaded / total * 100)));
+      const label = progress.url ? String(progress.url).split('/').pop() : 'model de veu';
+      setStatus(`Descarregant ${label}: ${pct}% (${context})`);
+      $('piperHint').textContent = `Primera càrrega del model neuronal: ${pct}%. Mantén la pàgina oberta i la connexió activa.`;
+    } else if (progress.url) {
+      setStatus(`Carregant fitxer del model neuronal (${context})…`);
+    }
+  }
   async function playPiperChunk(runId) {
     if (runId !== piperRunId || !piperActive || piperPaused) return;
     if (piperIndex >= piperQueue.length) {
@@ -119,7 +131,7 @@
       const voiceCandidates = [$('piperVoiceSelect')?.value || 'ca_ES-upc_ona-medium'];
       let wav = null, lastError = null;
       for (const voiceId of voiceCandidates) {
-        try { wav = await piperModule.predict({ text: piperQueue[index], voiceId }); if (wav) break; }
+        try { wav = await piperModule.predict({ text: piperQueue[index], voiceId }, progress => reportPiperDownload(progress, `fragment ${index + 1}/${piperQueue.length}`)); if (wav) break; }
         catch (err) { lastError = err; }
       }
       if (runId !== piperRunId || !piperActive) return;
@@ -233,7 +245,7 @@
           setStatus(`${sectionIndex+1}/7 · Generant àudio (${done+1}/${totalChunks})…`);
           let wav = null, lastError = null;
           for (const voiceId of [$('piperVoiceSelect')?.value || 'ca_ES-upc_ona-medium']) {
-            try { wav = await piperModule.predict({text:piece, voiceId}); if (wav) break; } catch (e) { lastError=e; }
+            try { wav = await piperModule.predict({text:piece, voiceId}, progress => reportPiperDownload(progress, `fragment ${done+1}/${totalChunks}`)); if (wav) break; } catch (e) { lastError=e; }
           }
           if (!wav) throw lastError || new Error('No s’ha pogut generar un fragment.');
           audioParts.push(await wavParts(wav)); done++;
