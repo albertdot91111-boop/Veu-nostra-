@@ -5,12 +5,23 @@
 <meta name="theme-color" content="#111114"><meta name="description" content="Lector gratuït de textos i PDF en català amb les veus disponibles al teu dispositiu.">
 <link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="stylesheet" href="styles.css">
 <title>VEU NOSTRA · Lector català</title>
-</head>
+<style>
+.podcast-studio{margin-bottom:16px}.podcast-studio[hidden]{display:none!important}
+.podcast-studio input,.podcast-studio textarea,.podcast-studio select{width:100%;box-sizing:border-box;border:1px solid var(--border,#444);border-radius:10px;padding:12px;background:var(--panel,#17171b);color:inherit;font:inherit}
+.podcast-studio .field{margin:10px 0}
+</style></head>
 <body>
 <header class="topbar"><img class="brandmark" src="icon.svg" alt="Logo de Veu Nostra"><div><div class="brand">VEU NOSTRA</div><div class="tagline">El teu lector de textos i PDF</div></div><button id="installBtn" class="install hidden" aria-label="Instal·lar aplicació">Instal·la</button></header>
 <main class="wrap">
 <section class="hero"><div class="eyebrow">✦ LECTOR DE VEU EN CATALÀ</div><h1>Converteix el teu text<br>en <span>veu natural</span></h1><p>Escolta apunts, documents i lectures amb les veus del teu dispositiu. Sense compte ni subscripció.</p></section>
 <div class="modebar" role="group" aria-label="Mode de lectura"><button class="mode active" data-mode="quick">ϟ &nbsp; Veu ràpida</button><button class="mode" data-mode="podcast">♬ &nbsp; Mode podcast</button></div>
+<section id="podcastStudio" class="panel podcast-studio" hidden>
+<div class="panel-head"><label for="episodeTitle">PODCAST · EPISODI</label><button id="saveEpisodeBtn" class="ghost" type="button">Desa episodi</button></div>
+<div class="field"><label for="episodeTitle">TÍTOL DE L’EPISODI</label><input id="episodeTitle" type="text" maxlength="120" placeholder="Ex.: Tema 1 — Comunicacions per ràdio"></div>
+<div class="field"><label for="episodeNotes">GUIÓ / NOTES (OPCIONAL)</label><textarea id="episodeNotes" rows="3" placeholder="Afegeix una introducció, capítols o notes per preparar el podcast…"></textarea><small>Es desa només en aquest dispositiu. No es genera cap guió amb IA ni s’envia a cap servidor.</small></div>
+<div class="field"><label for="episodeSelect">EPISODIS DESATS</label><select id="episodeSelect"><option value="">Encara no hi ha episodis desats</option></select><div class="file-actions"><button id="loadEpisodeBtn" class="filebtn" type="button">Carrega episodi</button><button id="deleteEpisodeBtn" class="ghost" type="button">Elimina</button></div></div>
+<p class="piper-note">Per narrar un episodi, posa el text complet al camp «El teu text» i utilitza la veu catalana neuronal o el lector del dispositiu. La generació d’àudio continua funcionant amb les opcions existents.</p>
+</section>
 <section class="panel">
 <div class="panel-head"><label for="textInput">EL TEU TEXT</label><div class="file-actions"><label for="pdfInput" class="filebtn">⇧ &nbsp; Carrega PDF</label><input id="pdfInput" type="file" accept="application/pdf,.pdf" hidden><button id="clearBtn" class="ghost">Neteja</button></div></div>
 <textarea id="textInput" maxlength="100000" placeholder="Escriu o enganxa el text aquí… També pots carregar un PDF per extreure'n el text." spellcheck="true"></textarea>
