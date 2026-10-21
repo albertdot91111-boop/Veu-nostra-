@@ -60,9 +60,9 @@
     else { utterance.lang = 'ca-ES'; if (!voices.some(v => (v.lang || '').toLowerCase().replace('_','-').startsWith('ca-'))) { setStatus('No hi ha cap veu catalana instal·lada. Instal·la’n una per evitar una veu d’una altra llengua.'); return; } }
     utterance.rate = effectiveRate();
     const style = $('voiceStyle')?.value || 'neutral';
-    utterance.pitch = ({deep:0.78,warm:0.94,narrative:0.98,neutral:1,calm:0.92,lively:1.08})[style] || 1; utterance.onstart = () => { setPlaying(true); $('playState').textContent = `Llegint fragment ${index + 1} de ${chunks.length}`; setStatus('Reproduint àudio…'); };
+    utterance.pitch = ({deep:0.78,warm:0.94,narrative:0.98,neutral:1,calm:0.92,lively:1.08})[style] || 1; utterance.onstart = () => { setPlaying(true); $('playState').textContent = `Llegint fragment ${index + 1} de ${chunks.length}`; setStatus(`Reproduint àudio · velocitat efectiva ${utterance.rate.toFixed(2)}×`); };
     utterance.onend = () => { if (speaking) speakChunk(index + 1); };
-    utterance.onerror = e => { if (e.error !== 'canceled' && e.error !== 'interrupted') { setPlaying(false); setStatus('No s’ha pogut reproduir la veu en aquest navegador.'); } };
+    utterance.onerror = e => { if (e.error !== 'canceled' && e.error !== 'interrupted') { setPlaying(false); $('playState').textContent = `Error de lectura: ${e.error || 'desconegut'}`; setStatus(`Android/navegador no ha pogut llegir el text (${e.error || 'error desconegut'}). Prova d’actualitzar les dades de veu catalana del dispositiu.`); } };
     synth.speak(utterance);
   }
   function effectiveRate(speed = Number($('speedRange').value)) {
@@ -174,6 +174,19 @@
       if (!piperModule) piperModule = await import('https://esm.sh/@mintplex-labs/piper-tts-web');
       piperQueue = splitForPiper(text, 420);
       if (!piperQueue.length) throw new Error('No hi ha text per llegir.');
+      const voiceId = $('piperVoiceSelect')?.value || 'ca_ES-upc_pau-x_low';
+      $('playState').textContent = 'Comprovant el model de veu…';
+      setStatus(`Preparant el model català ${voiceId}…`);
+      $('piperHint').textContent = 'Comprovant les veus disponibles i preparant el model. La primera descàrrega pot trigar; aquí es mostrarà el progrés.';
+      if (typeof piperModule.voices === 'function') {
+        const available = await piperModule.voices();
+        if (Array.isArray(available) && available.length && !available.some(v => (typeof v === 'string' ? v : (v.key || v.voiceId || v.id)) === voiceId)) {
+          throw new Error(`El model ${voiceId} no apareix a la llista de veus del motor.`);
+        }
+      }
+      if (typeof piperModule.download === 'function') {
+        await piperModule.download(voiceId, progress => reportPiperDownload(progress, 'descàrrega inicial'));
+      }
       piperIndex = 0; piperPaused = false; piperActive = true;
       const runId = piperRunId;
       $('progressBar').style.width = '0%'; $('pauseBtn').textContent = 'Ⅱ';
@@ -234,6 +247,14 @@
       setStage(0, '0/7 · Preparant el text…');
       const normalized = text.replace(/\s+/g,' ').trim();
       if (!piperModule) { setStatus('Carregant el motor neuronal…'); piperModule = await import('https://esm.sh/@mintplex-labs/piper-tts-web'); }
+      const voiceId = $('piperVoiceSelect')?.value || 'ca_ES-upc_pau-x_low';
+      $('playState').textContent = 'Comprovant el model de veu…';
+      setStatus(`Preparant el model català ${voiceId}…`);
+      if (typeof piperModule.voices === 'function') {
+        const available = await piperModule.voices();
+        if (Array.isArray(available) && available.length && !available.some(v => (typeof v === 'string' ? v : (v.key || v.voiceId || v.id)) === voiceId)) throw new Error(`El model ${voiceId} no apareix a la llista de veus del motor.`);
+      }
+      if (typeof piperModule.download === 'function') await piperModule.download(voiceId, progress => reportPiperDownload(progress, 'descàrrega inicial'));
       const chunksForAudio = splitForPiper(normalized, 350);
       if (!chunksForAudio.length) throw new Error('No hi ha fragments per generar.');
       // Divideix per fragments ja tallats entre paraules: evita tallar una paraula a mitja síl·laba.
@@ -244,7 +265,7 @@
         for (const piece of allChunks[sectionIndex]) {
           setStatus(`${sectionIndex+1}/7 · Generant àudio (${done+1}/${totalChunks})…`);
           let wav = null, lastError = null;
-          for (const voiceId of [$('piperVoiceSelect')?.value || 'ca_ES-upc_ona-medium']) {
+          for (const voiceId of [$('piperVoiceSelect')?.value || 'ca_ES-upc_pau-x_low']) {
             try { wav = await piperModule.predict({text:piece, voiceId}, progress => reportPiperDownload(progress, `fragment ${done+1}/${totalChunks}`)); if (wav) break; } catch (e) { lastError=e; }
           }
           if (!wav) throw lastError || new Error('No s’ha pogut generar un fragment.');
