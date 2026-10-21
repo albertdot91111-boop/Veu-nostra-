@@ -10,6 +10,67 @@
   function setStatus(message) { $('status').textContent = message; }
   function setStage(n, message) { $('stageCount').textContent = `${n}/7`; $('progressBar').style.width = `${Math.round(n / 7 * 100)}%`; if (message) { $('playState').textContent = message; setStatus(message); } }
   function updateCount() { $('charCount').textContent = textInput.value.length.toLocaleString('ca-ES'); }
+
+  // Estudi local de podcasts inspirat en les funcions del projecte Emergent.
+  const podcastStudio = $('podcastStudio');
+  const episodeTitle = $('episodeTitle'), episodeNotes = $('episodeNotes'), episodeSelect = $('episodeSelect');
+  const EPISODES_KEY = 'veu-nostra-podcast-episodes-v1';
+  function readEpisodes() {
+    try { const value = JSON.parse(localStorage.getItem(EPISODES_KEY) || '[]'); return Array.isArray(value) ? value : []; }
+    catch (_) { return []; }
+  }
+  function refreshEpisodes(selectedId = '') {
+    if (!episodeSelect) return;
+    const items = readEpisodes();
+    episodeSelect.innerHTML = '';
+    if (!items.length) {
+      const opt = document.createElement('option'); opt.value = ''; opt.textContent = 'Encara no hi ha episodis desats'; episodeSelect.append(opt); return;
+    }
+    for (const item of items) {
+      const opt = document.createElement('option'); opt.value = item.id;
+      opt.textContent = item.title || 'Episodi sense títol'; episodeSelect.append(opt);
+    }
+    if (selectedId && items.some(item => item.id === selectedId)) episodeSelect.value = selectedId;
+  }
+  function switchMode(nextMode) {
+    mode = nextMode;
+    if (podcastStudio) podcastStudio.hidden = nextMode !== 'podcast';
+    document.querySelectorAll('.mode').forEach(b => b.classList.toggle('active', b.dataset.mode === nextMode));
+    $('modeLabel').textContent = nextMode === 'podcast' ? 'MODE PODCAST' : 'VEU RÀPIDA';
+    if (nextMode === 'podcast') {
+      $('readingStyle').value = 'podcast';
+      $('speedRange').value = Math.min(Number($('speedRange').value), 1.0);
+      $('speedLabel').textContent = Number($('speedRange').value).toLocaleString('ca-ES',{minimumFractionDigits:1,maximumFractionDigits:2}) + '×';
+      setStatus('Mode podcast: prepara i desa els teus episodis');
+      refreshEpisodes();
+    } else {
+      $('readingStyle').value = 'natural';
+      setStatus('Mode veu ràpida');
+    }
+    if (piperAudio) piperAudio.playbackRate = effectiveRate();
+  }
+  $('saveEpisodeBtn')?.addEventListener('click', () => {
+    const title = (episodeTitle.value || '').trim() || 'Episodi ' + new Date().toLocaleDateString('ca-ES');
+    const items = readEpisodes();
+    const id = (globalThis.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
+    items.unshift({id, title, notes: episodeNotes.value || '', text: textInput.value || '', updatedAt: new Date().toISOString()});
+    try {
+      localStorage.setItem(EPISODES_KEY, JSON.stringify(items.slice(0,50)));
+      episodeTitle.value = title; refreshEpisodes(id); setStatus('Episodi desat en aquest dispositiu.');
+    } catch (_) { setStatus('No s’ha pogut desar: l’emmagatzematge del navegador és ple o bloquejat.'); }
+  });
+  $('loadEpisodeBtn')?.addEventListener('click', () => {
+    const item = readEpisodes().find(x => x.id === episodeSelect.value);
+    if (!item) { setStatus('Selecciona primer un episodi desat.'); return; }
+    episodeTitle.value = item.title || ''; episodeNotes.value = item.notes || '';
+    textInput.value = item.text || ''; updateCount();
+    setStatus('Episodi carregat. Prem «Llegeix el text» o genera l’àudio.');
+  });
+  $('deleteEpisodeBtn')?.addEventListener('click', () => {
+    const id = episodeSelect.value; if (!id) { setStatus('No hi ha cap episodi seleccionat.'); return; }
+    try { localStorage.setItem(EPISODES_KEY, JSON.stringify(readEpisodes().filter(x => x.id !== id))); refreshEpisodes(); setStatus('Episodi eliminat d’aquest dispositiu.'); }
+    catch (_) { setStatus('No s’ha pogut eliminar l’episodi.'); }
+  });
   function refreshVoices() {
     const previousHint = $('voiceHint').textContent;
     voices = synth ? synth.getVoices() : [];
@@ -305,7 +366,7 @@
     updateCount();
   });
   $('speedRange').addEventListener('input', e => $('speedLabel').textContent = `${Number(e.target.value).toLocaleString('ca-ES',{minimumFractionDigits:1,maximumFractionDigits:2})}×`);
-  document.querySelectorAll('.mode').forEach(btn => btn.addEventListener('click', () => { mode = btn.dataset.mode; document.querySelectorAll('.mode').forEach(b => b.classList.toggle('active', b === btn)); $('modeLabel').textContent = mode === 'podcast' ? 'MODE PODCAST' : 'VEU RÀPIDA'; if (mode === 'podcast') { $('speedRange').value = Math.min(Number($('speedRange').value),1.05); $('speedLabel').textContent = `${Number($('speedRange').value).toLocaleString('ca-ES',{minimumFractionDigits:1})}×`; setStatus('Mode podcast: ritme més pausat'); } else setStatus('Mode veu ràpida'); }));
+  document.querySelectorAll('.mode').forEach(btn => btn.addEventListener('click', () => switchMode(btn.dataset.mode)));
   pdfInput.addEventListener('change', async () => {
     const file = pdfInput.files && pdfInput.files[0]; if (!file) return;
     if (!file.name.toLowerCase().endsWith('.pdf')) { setStatus('Tria un fitxer PDF.'); return; }
@@ -324,7 +385,7 @@
     } catch (err) { console.error(err); setStatus('No s’ha pogut llegir el PDF. Pot estar protegit o malmès.'); }
   });
   $('readingStyle')?.addEventListener('change', () => { const names={natural:'Estil natural',podcast:'Mode podcast pausat',study:'Mode estudi: lent i clar'}; setStatus(names[$('readingStyle').value]+' seleccionat.'); if (piperAudio) piperAudio.playbackRate=effectiveRate(); });
-  document.querySelectorAll('.mode').forEach(btn => btn.addEventListener('click', () => { mode = btn.dataset.mode; document.querySelectorAll('.mode').forEach(b => b.classList.toggle('active', b === btn)); if (mode === 'podcast') { $('readingStyle').value = 'podcast'; setStatus('Mode podcast: ritme més pausat'); } else { $('readingStyle').value = 'natural'; setStatus('Mode veu ràpida'); } if (piperAudio) piperAudio.playbackRate=effectiveRate(); }));
+  
   if (synth) { refreshVoices(); if (synth.onvoiceschanged !== undefined) synth.onvoiceschanged = refreshVoices; }
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
   let deferredPrompt; const installBtn = $('installBtn');
