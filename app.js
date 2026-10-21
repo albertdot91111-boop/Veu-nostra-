@@ -15,11 +15,11 @@
     voices = synth ? synth.getVoices() : [];
     const old = voiceSelect.value;
     voiceSelect.innerHTML = '';
-    const catalan = voices.filter(v => (v.lang || '').toLowerCase().startsWith('ca'));
-    const sorted = [...catalan, ...voices.filter(v => !catalan.includes(v))];
+    const catalan = voices.filter(v => (v.lang || '').toLowerCase().replace('_','-').startsWith('ca-') || (v.lang || '').toLowerCase() === 'ca');
+    const sorted = [...catalan];
     if (!sorted.length) {
-      const option = document.createElement('option'); option.value = ''; option.textContent = 'Veu del dispositiu (automàtica)'; voiceSelect.append(option);
-      $('voiceHint').textContent = 'No s’han detectat veus instal·lades. Prova-ho amb un navegador compatible.';
+      const option = document.createElement('option'); option.value = ''; option.textContent = 'Cap veu catalana detectada'; voiceSelect.append(option);
+      $('voiceHint').textContent = 'No s’ha detectat cap veu catalana. Instal·la una veu catalana al dispositiu i prem «Actualitza les veus».';
       return;
     }
     sorted.forEach((v, i) => {
@@ -27,7 +27,7 @@
       o.textContent = `${v.name} · ${v.lang}${v.default ? ' · predeterminada' : ''}`;
       voiceSelect.append(o);
     });
-    const preferred = sorted.find(v => (v.lang || '').toLowerCase().startsWith('ca')) || sorted[0];
+    const preferred = sorted.find(v => (v.lang || '').toLowerCase().replace('_','-').startsWith('ca-')) || sorted[0];
     voiceSelect.value = [...voiceSelect.options].some(o => o.value === old) ? old : String(voices.indexOf(preferred));
     $('voiceHint').textContent = catalan.length ? `${catalan.length} veu(s) catalana(es) detectada(es). Prova-les: la qualitat depèn del motor i del dispositiu.` : 'No s’ha detectat cap veu catalana. A Android, revisa Configuració → Sortida de text a veu → motor de Google → Idiomes/dades de veu; després prem «Actualitza les veus».';
   }
@@ -55,14 +55,20 @@
       setPlaying(false); $('playState').textContent = 'Lectura finalitzada'; $('progressBar').style.width = '100%'; setStatus('Lectura finalitzada'); return;
     }
     currentChunk = index; updateProgress(); utterance = new SpeechSynthesisUtterance(chunks[index]);
-    const selected = voices.find(v => String(voices.indexOf(v)) === voiceSelect.value);
+    const selected = voices.find(v => String(voices.indexOf(v)) === voiceSelect.value && ((v.lang || '').toLowerCase().replace('_','-').startsWith('ca-') || (v.lang || '').toLowerCase() === 'ca'));
     if (selected) { utterance.voice = selected; utterance.lang = selected.lang; }
-    else utterance.lang = 'ca-ES';
-    const speed = Number($('speedRange').value); utterance.rate = mode === 'podcast' ? Math.min(speed, 1.05) : speed;
-    utterance.pitch = 1; utterance.onstart = () => { setPlaying(true); $('playState').textContent = `Llegint fragment ${index + 1} de ${chunks.length}`; setStatus('Reproduint àudio…'); };
+    else { utterance.lang = 'ca-ES'; if (!voices.some(v => (v.lang || '').toLowerCase().replace('_','-').startsWith('ca-'))) { setStatus('No hi ha cap veu catalana instal·lada. Instal·la’n una per evitar una veu d’una altra llengua.'); return; } }
+    utterance.rate = effectiveRate();
+    const style = $('voiceStyle')?.value || 'neutral';
+    utterance.pitch = ({deep:0.78,warm:0.94,narrative:0.98,neutral:1,calm:0.92,lively:1.08})[style] || 1; utterance.onstart = () => { setPlaying(true); $('playState').textContent = `Llegint fragment ${index + 1} de ${chunks.length}`; setStatus('Reproduint àudio…'); };
     utterance.onend = () => { if (speaking) speakChunk(index + 1); };
     utterance.onerror = e => { if (e.error !== 'canceled' && e.error !== 'interrupted') { setPlaying(false); setStatus('No s’ha pogut reproduir la veu en aquest navegador.'); } };
     synth.speak(utterance);
+  }
+  function effectiveRate(speed = Number($('speedRange').value)) {
+    const style = $('readingStyle')?.value || (mode === 'podcast' ? 'podcast' : 'natural');
+    const multiplier = style === 'podcast' ? 0.85 : style === 'study' ? 0.78 : 1;
+    return Math.max(0.5, Math.min(2, speed * multiplier));
   }
   let piperModule = null, piperAudio = null, piperObjectUrl = null, piperQueue = [], piperIndex = 0, piperRunId = 0, piperPaused = false, piperActive = false;
   const piperBtn = $('piperBtn');
@@ -110,7 +116,7 @@
     $('progressBar').style.width = `${Math.round(index / piperQueue.length * 100)}%`;
     setStatus(`Generant veu neuronal: fragment ${index + 1} de ${piperQueue.length}. En textos llargs pot trigar.`);
     try {
-      const voiceCandidates = ['ca_ES-upc_ona-medium', 'ca_ES-upc_ona-low'];
+      const voiceCandidates = [$('piperVoiceSelect')?.value || 'ca_ES-upc_ona-medium'];
       let wav = null, lastError = null;
       for (const voiceId of voiceCandidates) {
         try { wav = await piperModule.predict({ text: piperQueue[index], voiceId }); if (wav) break; }
@@ -121,7 +127,7 @@
       if (piperObjectUrl) URL.revokeObjectURL(piperObjectUrl);
       piperObjectUrl = URL.createObjectURL(wav);
       piperAudio = new Audio(piperObjectUrl);
-      piperAudio.playbackRate = Number($('speedRange').value);
+      piperAudio.playbackRate = effectiveRate();
       piperAudio.onplay = () => { $('playState').textContent = `Reproduint fragment ${index + 1} de ${piperQueue.length}`; setStatus('Veu neuronal en reproducció.'); };
       piperAudio.onended = () => {
         if (runId !== piperRunId || !piperActive) return;
@@ -226,7 +232,7 @@
         for (const piece of allChunks[sectionIndex]) {
           setStatus(`${sectionIndex+1}/7 · Generant àudio (${done+1}/${totalChunks})…`);
           let wav = null, lastError = null;
-          for (const voiceId of ['ca_ES-upc_ona-medium','ca_ES-upc_ona-low']) {
+          for (const voiceId of [$('piperVoiceSelect')?.value || 'ca_ES-upc_ona-medium']) {
             try { wav = await piperModule.predict({text:piece, voiceId}); if (wav) break; } catch (e) { lastError=e; }
           }
           if (!wav) throw lastError || new Error('No s’ha pogut generar un fragment.');
@@ -284,6 +290,8 @@
       textInput.value = extracted; updateCount(); setStatus(`PDF carregat: ${pdf.numPages} pàgina(es), ${extracted.length.toLocaleString('ca-ES')} caràcters. Revisa el text abans de reproduir-lo.`); $('playState').textContent = 'PDF preparat';
     } catch (err) { console.error(err); setStatus('No s’ha pogut llegir el PDF. Pot estar protegit o malmès.'); }
   });
+  $('readingStyle')?.addEventListener('change', () => { const names={natural:'Estil natural',podcast:'Mode podcast pausat',study:'Mode estudi: lent i clar'}; setStatus(names[$('readingStyle').value]+' seleccionat.'); if (piperAudio) piperAudio.playbackRate=effectiveRate(); });
+  document.querySelectorAll('.mode').forEach(btn => btn.addEventListener('click', () => { mode = btn.dataset.mode; document.querySelectorAll('.mode').forEach(b => b.classList.toggle('active', b === btn)); if (mode === 'podcast') { $('readingStyle').value = 'podcast'; setStatus('Mode podcast: ritme més pausat'); } else { $('readingStyle').value = 'natural'; setStatus('Mode veu ràpida'); } if (piperAudio) piperAudio.playbackRate=effectiveRate(); }));
   if (synth) { refreshVoices(); if (synth.onvoiceschanged !== undefined) synth.onvoiceschanged = refreshVoices; }
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
   let deferredPrompt; const installBtn = $('installBtn');
