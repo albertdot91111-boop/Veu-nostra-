@@ -4,3 +4,7 @@
 
 .download-audio{width:100%;margin-top:10px;background:#f97316;color:#151515;border:0;font-weight:800}
 #stageCount{font-weight:800;color:#f97316;font-variant-numeric:tabular-nums}
+
+
+/* Selector de veus catalanes i estil de lectura */
+.piper-settings{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0}.piper-settings .field{min-width:0}.piper-note{color:var(--muted);font-size:13px;line-height:1.6}.piper-box{margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}.settings .field small,.piper-box small{display:block;color:var(--muted);font-size:12px;line-height:1.5;margin:8px 0}.settings .field .ghost{margin-top:8px}@media(max-width:600px){.settings,.piper-settings{grid-template-columns:1fr}.panel{padding:15px}.hero h1{font-size:38px}}
