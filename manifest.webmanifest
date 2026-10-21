@@ -1,0 +1,25 @@
+{
+  "name": "Veu Nostra · Lector català",
+  "short_name": "Veu Nostra",
+  "description": "Converteix textos i PDF en veu catalana amb Veu Nostra.",
+  "lang": "ca",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0c0c0f",
+  "theme_color": "#111114",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-1024.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
