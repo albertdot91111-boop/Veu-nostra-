@@ -40,3 +40,8 @@ La interfície inclou un botó beta que intenta carregar `@mintplex-labs/piper-t
 ## Límit de text
 
 La versió admet fins a 100.000 caràcters enganxats o extrets d’un PDF. Si el PDF supera el límit, s’importen els primers 100.000 caràcters. Per a textos tan llargs, utilitza la lectura estàndard del navegador; la funció Piper experimental ara intenta generar fragments consecutius de tot el text, però cal validar-la en un navegador real i amb el model català publicat.
+
+
+## Selector de veus catalanes i estils
+
+La interfície filtra les veus del dispositiu per mostrar només veus amb idioma català. El motor neuronal Piper ofereix els models catalans configurats: `ca_ES-upc_ona-medium` (Ona, qualitat mitjana) i `ca_ES-upc_pau-x_low` (Pau, veu masculina, qualitat baixa). Els estils de lectura són Natural, Podcast pausat i Estudi lent i clar. La integració neuronal és experimental i requereix provar-la al dispositiu real.
